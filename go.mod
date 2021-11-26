@@ -5,6 +5,7 @@ go 1.17
 require (
 	fyne.io/fyne/v2 v2.1.1
 	github.com/grassmudhorses/vader-go v0.0.0-20191126145716-003d5aacdb71
+	github.com/mattn/go-isatty v0.0.14
 	github.com/n0madic/twitter-scraper v0.0.0-20211109100815-68c2a57a3030
 )
 

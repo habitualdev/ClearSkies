@@ -5,6 +5,7 @@ import (
 	twitterscraper "github.com/n0madic/twitter-scraper"
 	"github.com/grassmudhorses/vader-go/lexicon"
 	"github.com/grassmudhorses/vader-go/sentitext"
+
 )
 
 type TweetEntry struct{

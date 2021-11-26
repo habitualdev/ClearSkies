@@ -1,18 +1,14 @@
 package main
 
 import (
-	"ClearSkies/scraper"
+	"ClearSkies/ui"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strconv"
-	"strings"
 )
 
 func main(){
-	var userName string
-	var sentimentGate float64
+
 
 	if _, err := os.Stat("config.txt"); errors.Is(err, os.ErrNotExist) {
 		fmt.Println("config.txt does not exist. Creating file...")
@@ -30,15 +26,6 @@ func main(){
 			fmt.Println("NOTE: A sentiment of -.5 is a good baseline to screen for obscene comments")
 		}
 	}
-	configLines, err := ioutil.ReadFile("config.txt")
-	configData := strings.Split(string(configLines),"\n")
-	userName = (strings.Split(configData[0],":"))[1]
-	sentimentGate, _ = strconv.ParseFloat(strings.Split(configData[1],":")[1],64)
-	fileLines, err := ioutil.ReadFile("ban.list")
-	if err != nil {
-		println(scraper.GetLatestTweets(userName, nil, sentimentGate))
-		}else{
-			banList := strings.Split(string(fileLines),"\n")
-			println(scraper.GetLatestTweets(userName, banList, sentimentGate))
-	}
+
+	ui.StartUi()
 }
