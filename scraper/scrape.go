@@ -2,10 +2,11 @@ package scraper
 
 import (
 	"context"
-	twitterscraper "github.com/n0madic/twitter-scraper"
 	"github.com/grassmudhorses/vader-go/lexicon"
 	"github.com/grassmudhorses/vader-go/sentitext"
-
+	twitterscraper "github.com/n0madic/twitter-scraper"
+	"sort"
+	"strings"
 )
 
 type TweetEntry struct{
@@ -15,6 +16,19 @@ type TweetEntry struct{
 	Timestamp int64
 }
 
+type listTemplate []TweetEntry
+
+func (l listTemplate) Len() int {
+	return len(l)
+}
+
+func (l listTemplate) Less(i, j int) bool {
+	return l[i].Timestamp > l[j].Timestamp
+}
+
+func (l listTemplate) Swap(i, j int) {
+	l[i], l[j] = l[j], l[i]
+}
 
 func GetLatestTweets(user string, badList []string, sentimentGate float64) []TweetEntry{
 	var tweetList []TweetEntry
@@ -32,11 +46,11 @@ func GetLatestTweets(user string, badList []string, sentimentGate float64) []Twe
 			}
 		}
 		if printCheck {
-			parsedtext := sentitext.Parse(tweet.Text, lexicon.DefaultLexicon)
-			sentiment := sentitext.PolarityScore(parsedtext)
+			parsedText := sentitext.Parse(tweet.Text, lexicon.DefaultLexicon)
+			sentiment := sentitext.PolarityScore(parsedText)
 			if sentiment.Compound > sentimentGate {
 				tempTweet := TweetEntry{
-					Text:      tweet.Text,
+					Text:      strings.ReplaceAll(tweet.Text,"\n"," "),
 					Username:  tweet.Username,
 					Sentiment: sentiment.Compound,
 					Timestamp: tweet.Timestamp,
@@ -45,6 +59,8 @@ func GetLatestTweets(user string, badList []string, sentimentGate float64) []Twe
 			}
 		}
 	}
+	sort.Sort(listTemplate(tweetList))
+
 	return tweetList
 }
 

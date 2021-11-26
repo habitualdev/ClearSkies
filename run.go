@@ -8,8 +8,6 @@ import (
 )
 
 func main(){
-
-
 	if _, err := os.Stat("config.txt"); errors.Is(err, os.ErrNotExist) {
 		fmt.Println("config.txt does not exist. Creating file...")
 		fmt.Println("Enter twitter handle: ")
@@ -26,6 +24,5 @@ func main(){
 			fmt.Println("NOTE: A sentiment of -.5 is a good baseline to screen for obscene comments")
 		}
 	}
-
 	ui.StartUi()
 }
