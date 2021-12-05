@@ -68,11 +68,15 @@ func getTweets() {
 	}
 }
 
-func writeToBan() {
-	banList, _ := os.OpenFile("ban.list", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
-	defer banList.Close()
-	banList.Write([]byte(name + "\n"))
-
+func banEnter() {
+	g.Custom(func() {
+		if g.IsKeyPressed(g.KeyEnter) {
+			banList, _ := os.OpenFile("ban.list", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+			defer banList.Close()
+			banList.Write([]byte(name + "\n"))
+			name = ""
+		}
+	})
 }
 
 func buildTweetRows() []*g.TableRowWidget {
@@ -89,16 +93,50 @@ func buildTweetRows() []*g.TableRowWidget {
 	}
 }
 
+func buildBanRows() []*g.TableRowWidget {
+	fileLines, err := ioutil.ReadFile("ban.list")
+	if err != nil {
+		banList = nil
+	} else {
+		banList = strings.Split(string(fileLines), "\n")
+	}
+	rows := make([]*g.TableRowWidget, len(banList))
+	for i := range rows {
+		rows[i] = g.TableRow(
+			g.Label(banList[i]).Wrapped(true),
+		)
+	}
+	return rows
+}
+
 func loop() {
-	w1 := g.SingleWindow()
 
 	w1Layout := g.Layout{
-		g.Label("User to block"),
-		g.InputText(&name).OnChange(writeToBan),
 		g.Label("Clear Skies"),
 		g.Table().FastMode(false).Rows(buildTweetRows()...).Columns(),
 	}
-	w1.Layout(w1Layout)
+
+	w2Layout := g.Layout{
+		g.Label("User to block"),
+		g.InputText(&name),
+		g.Table().Rows(buildBanRows()...),
+		g.Custom(func() {
+			if g.IsKeyPressed(g.KeyEnter) {
+				banList, _ := os.OpenFile("ban.list", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+				defer banList.Close()
+				banList.Write([]byte(name + "\n"))
+				name = ""
+			}
+		}),
+	}
+
+	w1 := g.SingleWindow()
+	tabLayout := g.TabBar().TabItems(
+		g.TabItem("Twitter Feed").Layout(w1Layout),
+		g.TabItem("Ban List").Layout(w2Layout),
+	)
+
+	w1.Layout(tabLayout)
 }
 
 func StartUi() {
