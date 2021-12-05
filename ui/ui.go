@@ -4,101 +4,104 @@ import (
 	"ClearSkies/scraper"
 	"crypto/sha256"
 	"fmt"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/widget"
+	g "github.com/AllenDang/giu"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
-
-
+var name string
 
 var banList []string
 
 var tweetCollector []string
 
-func testHash(hash string, hashedHistory []string) bool{
+var wnd = g.NewMasterWindow("Clear Skies", 800, 600, 0)
+
+func testHash(hash string, hashedHistory []string) bool {
 	for _, testHash := range hashedHistory {
-		if hash == testHash{
+		if hash == testHash {
 			return true
 		}
 	}
 	return false
 }
-func StartUi() {
-	a := app.New()
-	w := a.NewWindow("Clear Skies")
-	configLines, _ := ioutil.ReadFile("config.txt")
-	configData := strings.Split(string(configLines),"\n")
-	userName := (strings.Split(configData[0],":"))[1]
-	sentimentGate, _ := strconv.ParseFloat(strings.Split(configData[1],":")[1],64)
-	data := binding.BindStringList(&tweetCollector)
-	tweetList := widget.NewListWithData(data,
-		func() fyne.CanvasObject {
-			widge := widget.NewLabel("")
-			widge.Wrapping = fyne.TextTruncate
-			tempsize := widge.Size()
-			tempsize.Height = tempsize.Height*2
-			widge.Resize(tempsize)
-			return widge
-		},func(i binding.DataItem, o fyne.CanvasObject) {
-			o.(*widget.Label).Bind(i.(binding.String))
-		})
 
-	startButton := widget.NewButton("Clear the air!", func() {
-		var hashedHistory []string
-		var printString string
-			go func() {
-				for {
-					fileLines, err := ioutil.ReadFile("ban.list")
-					if err != nil {
-						banList = nil
-					}else{
-						banList = strings.Split(string(fileLines),"\n")
-					}
-					for n, existingLine := range tweetCollector {
-						for _, badguy := range banList {
-							if len(existingLine) > 4 {
-								if matched, _ := regexp.MatchString(": " + badguy + " :", existingLine); matched {
-									println(badguy, ":", existingLine)
-									data.SetValue(n, "BANNED USER - " + badguy)
-								}
-							}
-						}
-					}
-					stringList := scraper.GetLatestTweets(userName, banList, sentimentGate)
-				for _, line := range stringList {
-					formattedTime := time.Unix(line.Timestamp, 0)
-					printString = formattedTime.Format("15:04:05") + " : " + line.Username + " : " + line.Text + "\n"
-					tempHashSum := fmt.Sprintf("%x", sha256.Sum256([]byte(printString)))
-					if !testHash(tempHashSum, hashedHistory) {
-						hashedHistory = append(hashedHistory, tempHashSum)
-						data.Append(printString)
+func getTweets() {
+	configLines, _ := ioutil.ReadFile("config.txt")
+	configData := strings.Split(string(configLines), "\n")
+	userName := (strings.Split(configData[0], ":"))[1]
+	sentimentGate, _ := strconv.ParseFloat(strings.Split(configData[1], ":")[1], 64)
+	var hashedHistory []string
+	var printString string
+
+	for {
+		fileLines, err := ioutil.ReadFile("ban.list")
+		if err != nil {
+			banList = nil
+		} else {
+			banList = strings.Split(string(fileLines), "\n")
+		}
+		for n, existingLine := range tweetCollector {
+			for _, badguy := range banList {
+				if len(existingLine) > 4 {
+					if matched, _ := regexp.MatchString(": "+badguy+" :", existingLine); matched {
+						tweetCollector[n] = "BANNED USER - " + badguy
 					}
 				}
-				time.Sleep(5 * time.Second)
 			}
-		}()
-	})
-	banEntry := widget.NewEntry()
-	banEntry.OnSubmitted = func(string){
-		existingBans, _ := ioutil.ReadFile("ban.list")
-		ioutil.WriteFile("ban.list",[]byte(string(existingBans) + "\n" + banEntry.Text),0644)
-		banEntry.SetText("")
+		}
+		stringList := scraper.GetLatestTweets(userName, banList, sentimentGate)
+		for _, line := range stringList {
+			formattedTime := time.Unix(line.Timestamp, 0)
+			printString = formattedTime.Format("15:04:05") + " : " + line.Username + " : " + line.Text + "\n"
+			tempHashSum := fmt.Sprintf("%x", sha256.Sum256([]byte(printString)))
+			if !testHash(tempHashSum, hashedHistory) {
+				hashedHistory = append(hashedHistory, tempHashSum)
+				tweetCollector = append(tweetCollector, printString)
+			}
+		}
+		time.Sleep(5 * time.Second)
 	}
-	w.SetContent(container.NewBorder(
-		banEntry,
-		startButton,
-		nil,
-		nil,
-		tweetList,
-	))
-	w.Resize(fyne.Size{800,600})
-	w.ShowAndRun()
+}
+
+func writeToBan() {
+	banList, _ := os.OpenFile("ban.list", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0644)
+	defer banList.Close()
+	banList.Write([]byte(name + "\n"))
+
+}
+
+func buildTweetRows() []*g.TableRowWidget {
+	if len(tweetCollector) == 0 {
+		return nil
+	} else {
+		rows := make([]*g.TableRowWidget, len(tweetCollector))
+		for i := range rows {
+			rows[i] = g.TableRow(
+				g.Label(tweetCollector[i]).Wrapped(true),
+			)
+		}
+		return rows
+	}
+}
+
+func loop() {
+	w1 := g.SingleWindow()
+
+	w1Layout := g.Layout{
+		g.Label("User to block"),
+		g.InputText(&name).OnChange(writeToBan),
+		g.Label("Clear Skies"),
+		g.Table().FastMode(false).Rows(buildTweetRows()...).Columns(),
+	}
+	w1.Layout(w1Layout)
+}
+
+func StartUi() {
+	go getTweets()
+	wnd.Run(loop)
 }
